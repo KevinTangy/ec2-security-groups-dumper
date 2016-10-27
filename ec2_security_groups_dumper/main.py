@@ -35,6 +35,7 @@ class FirewallRule(object):
                  id,
                  name,
                  description,
+                 tags_justification=None,
                  rules_ip_protocol=None,
                  rules_from_port=None,
                  rules_to_port=None,
@@ -52,10 +53,12 @@ class FirewallRule(object):
             - rules_grants_group_id (unicode)
             - rules_grants_name (unicode)
             - rules_grants_cidr_ip (unicode)
+            - tags_justification (unicode)
         """
         assert isinstance(id, unicode), "Invalid id: {}".format(id)
         assert isinstance(name, unicode)
         assert isinstance(description, unicode)
+        assert isinstance(tags_justification, unicode)
         assert rules_ip_protocol in (u'tcp', u'udp', u'icmp', "-1", None)
         assert isinstance(rules_from_port, (unicode, NoneType))
         assert isinstance(rules_to_port, (unicode, NoneType))
@@ -72,6 +75,7 @@ class FirewallRule(object):
         self.rules_grants_group_id = rules_grants_group_id
         self.rules_grants_name = rules_grants_name
         self.rules_grants_cidr_ip = rules_grants_cidr_ip
+        self.tags_justification = tags_justification
 
     def as_dict(self):
         """
@@ -87,7 +91,8 @@ class FirewallRule(object):
             'rules_to_port': self.rules_to_port,
             'rules_grants_group_id': self.rules_grants_group_id,
             'rules_grants_name': self.rules_grants_name,
-            'rules_grants_cidr_ip': self.rules_grants_cidr_ip
+            'rules_grants_cidr_ip': self.rules_grants_cidr_ip,
+            'tags_justification': self.tags_justification
         }
 
         return dict_fw
@@ -165,6 +170,7 @@ class Firewall(object):
                                     main_row['id'],
                                     main_row['name'],
                                     main_row['description'],
+                                    main_row['justification'],
                                     rules_ip_protocol=row_ip_protocol,
                                     rules_from_port=rule_row['from_port'],
                                     rules_to_port=rule_row['to_port'],
@@ -176,6 +182,7 @@ class Firewall(object):
                                     main_row['id'],
                                     main_row['name'],
                                     main_row['description'],
+                                    main_row['justification'],
                                     rules_ip_protocol=rule_row['ip_protocol'],
                                     rules_from_port=rule_row['from_port'],
                                     rules_to_port=rule_row['to_port'],
@@ -189,6 +196,7 @@ class Firewall(object):
                             main_row['id'],
                             main_row['name'],
                             main_row['description'],
+                            main_row['justification'],
                             rules_ip_protocol=rule_row['ip_protocol'],
                             rules_from_port=rule_row['from_port'],
                             rules_to_port=rule_row['to_port'])
@@ -196,20 +204,22 @@ class Firewall(object):
             else:
                 fr = FirewallRule(main_row['id'],
                                   main_row['name'],
-                                  main_row['description'])
+                                  main_row['description'],
+                                  main_row['justification'])
                 list_of_rules.append(fr)
 
         # Sort the data in order to get a consistent output
         sorted_list = sorted(list_of_rules,
-                             key=lambda fr: (fr.id,
-                                             fr.name,
-                                             fr.description,
+                             key=lambda fr: (fr.name,
+                                             fr.id,
                                              fr.rules_ip_protocol,
                                              fr.rules_from_port,
                                              fr.rules_to_port,
                                              fr.rules_grants_group_id,
                                              fr.rules_grants_name,
-                                             fr.rules_grants_cidr_ip))
+                                             fr.rules_grants_cidr_ip,
+                                             fr.description,
+                                             fr.tags_justification))
 
         return sorted_list
 
@@ -219,30 +229,32 @@ class Firewall(object):
         Returns the security rules as a CSV.
 
         CSV format:
-        - id
         - name
-        - description
+        - id
         - rules_ip_protocol
         - rules_from_port
         - rules_to_port
         - rules_grants_group_id
         - rules_grants_name
         - rules_grants_cidr_ip
+        - description
+        - tags_justification
 
         Returns:
             str
         """
         # Generate a csv file in memory with all the data in
         output = StringIO.StringIO()
-        fieldnames = ['id',
-                      'name',
-                      'description',
+        fieldnames = ['name',
+                      'id',
                       'rules_ip_protocol',
                       'rules_from_port',
                       'rules_to_port',
                       'rules_grants_group_id',
                       'rules_grants_name',
-                      'rules_grants_cidr_ip']
+                      'rules_grants_cidr_ip',
+                      'description',
+                      'tags_justification']
         writer = csv.DictWriter(output, fieldnames=fieldnames)
         writer.writeheader()
         for fr in self.rules:
@@ -275,6 +287,12 @@ class Firewall(object):
             group_dict = dict()
             group_dict['id'] = group.id
             group_dict['name'] = group.name
+
+            if 'Justification' in group.tags:
+                group_dict['justification'] = group.tags['Justification']
+            else:
+                group_dict['justification'] = unicode('')
+
             if group.description:
                 group_dict['description'] = group.description
 
